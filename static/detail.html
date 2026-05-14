@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETF 详情 — 国家队量化看板</title>
+    <meta name="description" content="ETF 价格与份额走势及十大持有人明细">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+<div class="app-container">
+    <a href="/" class="back-btn">← 返回看板</a>
+
+    <div class="detail-header" id="detailHeader">
+        <span class="code" id="etfCode">-</span>
+        <h1 id="etfName">加载中...</h1>
+    </div>
+
+    <!-- Price + Share Chart -->
+    <section class="card">
+        <div class="card-header">
+            <div class="card-title"><span class="emoji">📈</span>价格 & 份额走势</div>
+            <div class="time-selector" id="timeSelector">
+                <button class="time-btn" data-days="30">1月</button>
+                <button class="time-btn" data-days="90">3月</button>
+                <button class="time-btn active" data-days="365">1年</button>
+            </div>
+        </div>
+        <div class="chart-container" id="detailChart">
+            <div class="loading-overlay"><div class="spinner"></div>加载中...</div>
+        </div>
+    </section>
+
+    <!-- Top 10 Holders -->
+    <section class="card">
+        <div class="card-header">
+            <div class="card-title"><span class="emoji">👥</span>十大持有人明细</div>
+        </div>
+        <div class="report-dates" id="reportDates"></div>
+        <div class="table-wrapper">
+            <table class="holders-table" id="holdersTable">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>持有人名称</th>
+                        <th>持有份额(万份)</th>
+                        <th>占总份额比(%)</th>
+                        <th>上期份额(万份)</th>
+                        <th>上期占比(%)</th>
+                        <th>份额变化%</th>
+                    </tr>
+                </thead>
+                <tbody id="holdersBody">
+                    <tr><td colspan="7" class="no-data"><div class="loading-overlay"><div class="spinner"></div>加载中...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<script src="/js/detail.js"></script>
+</body>
+</html>

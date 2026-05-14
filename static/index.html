@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETF 国家队量化看板</title>
+    <meta name="description" content="追踪国家队（汇金、社保）持仓 ETF 的份额变化与持有人状况">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+<div class="app-container">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-title">
+            <span class="icon">🏛️</span>
+            <h1>ETF 国家队量化看板</h1>
+        </div>
+        <div class="header-meta">
+            <span class="status-dot"></span>
+            <span id="lastUpdate">加载中...</span>
+        </div>
+    </header>
+
+    <!-- Chart Card -->
+    <section class="card" id="chartCard">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="emoji">📈</span>
+                国家队 ETF 总份额变化 & 指数价格走势
+            </div>
+            <div class="time-selector" id="timeSelector">
+                <button class="time-btn" data-days="30">1月</button>
+                <button class="time-btn" data-days="90">3月</button>
+                <button class="time-btn active" data-days="365">1年</button>
+            </div>
+        </div>
+        <div class="chart-container" id="mainChart">
+            <div class="loading-overlay"><div class="spinner"></div>加载图表数据...</div>
+        </div>
+    </section>
+
+    <!-- Table Card -->
+    <section class="card" id="tableCard">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="emoji">📋</span>
+                国家队持仓 ETF 明细
+            </div>
+            <div class="header-meta">
+                <span id="etfCount">-</span>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table id="etfTable">
+                <thead>
+                    <tr>
+                        <th data-sort="ts_code">代码</th>
+                        <th data-sort="name">名称</th>
+                        <th data-sort="latest_share">最新份额(亿)</th>
+                        <th data-sort="share_chg_1d">日变化%</th>
+                        <th data-sort="share_chg_1w">周变化%</th>
+                        <th data-sort="share_chg_1m">月变化%</th>
+                        <th data-sort="share_chg_3m">季变化%</th>
+                        <th data-sort="share_chg_1y">年变化%</th>
+                        <th data-sort="nt_hold_ratio">国家队占比%</th>
+                        <th data-sort="nt_hold_change">持仓变化</th>
+                        <th>报告期</th>
+                    </tr>
+                </thead>
+                <tbody id="etfTableBody">
+                    <tr><td colspan="11" class="no-data"><div class="loading-overlay"><div class="spinner"></div>加载数据...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<script src="/js/main.js"></script>
+</body>
+</html>
