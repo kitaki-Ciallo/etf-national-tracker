@@ -104,6 +104,21 @@ body::before {
 
 .header-title .icon { font-size: 1.8rem; }
 
+.header-subtitle {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+}
+
+.header-subtitle .date-value {
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
 .header-meta {
     display: flex; align-items: center; gap: 16px;
     color: var(--text-muted); font-size: 0.85rem;

@@ -156,7 +156,10 @@ def api_overview_table():
 
             results.append(row)
 
-        return jsonify(results)
+        return jsonify({
+            "data": results,
+            "latest_share_date": latest_date.isoformat() if latest_date else None,
+        })
     finally:
         conn.close()
 

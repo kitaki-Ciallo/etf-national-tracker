@@ -9,7 +9,8 @@
 
 > ⚠️ **关于数据时效性**
 >
-> ETF 的**每日份额**数据由上交所每个交易日公布，可做到日频更新。但**十大持有人**数据严格遵循公募基金信息披露规则，仅在**半年报**（报告期截至 6 月 30 日，8 月底前披露）和**年报**（报告期截至 12 月 31 日，次年 3 月底前披露）中公布，**每半年才更新一次**。因此看板中"国家队持仓占比"及"持仓变化"等基于持有人的指标**数据延迟较高**（最长可达 6 个月），仅能反映最近一次定期报告时点的持仓快照，并非实时数据，请注意区分。
+> - **每日份额**：由上交所公布，但存在 **T+1 延迟**（当日份额次日才可获取），看板主页标题处会显示份额数据的实际更新日期。
+> - **十大持有人**：严格遵循公募基金信息披露规则，仅在**半年报**（报告期截至 6 月 30 日，8 月底前披露）和**年报**（报告期截至 12 月 31 日，次年 3 月底前披露）中公布，**每半年才更新一次**。因此"国家队持仓占比"及"持仓变化"等指标**延迟最长可达 6 个月**，仅反映最近一次定期报告时点的快照。
 
 ## ✨ 功能概览
 
@@ -55,10 +56,12 @@ graph TB
 
 | 层级 | 技术 |
 |---|---|
-| 数据采集 | AKShare (份额) + 新浪财经 API (价格、持有人) |
+| 数据采集 | 上交所 SSE API (份额) + 新浪财经 API (价格、持有人) |
 | 数据库 | PostgreSQL |
 | 后端 | Flask |
 | 前端 | HTML + CSS + JavaScript + ECharts |
+
+> 📌 份额采集已**完全移除 AKShare 依赖**，改为直接调用上交所 `query.sse.com.cn` API。采用 `requests` 优先 + `curl` 自动 fallback 的双重策略，确保在云服务器上也能稳定运行。
 
 ## 📁 项目结构
 
@@ -126,7 +129,7 @@ python init_data.py
 ```
 
 > 首次运行约需 15-20 分钟，包括：
-> - 回溯约 1 年每日份额数据 (AKShare → 上交所)
+> - 回溯约 1 年每日份额数据 (直接调用上交所 API)
 > - 获取约 1023 条日K线历史价格 (新浪财经)
 > - 获取最新两期十大持有人 (新浪财经)
 
@@ -137,6 +140,27 @@ python app.py
 ```
 
 访问 http://localhost:5000
+
+### Docker 部署 (可选)
+
+如果数据库通过 Docker Compose 运行：
+
+```bash
+# 1. 创建数据库
+docker exec -i <container_id> psql -U quant_user postgres -c "CREATE DATABASE etf_dashboard;"
+
+# 2. 导入表结构
+cat schema.sql | docker exec -i <container_id> psql -U quant_user etf_dashboard
+
+# 3. 如果服务器访问上交所 API 较慢，可从本地导出 CSV 再导入
+#    本地导出:
+#    psql -d etf_dashboard -c "\COPY etf_daily_share TO 'export_share.csv' WITH CSV HEADER"
+#    服务器导入:
+cat export_share.csv | docker exec -i <container_id> psql -U quant_user etf_dashboard -c "COPY etf_daily_share FROM STDIN WITH CSV HEADER"
+
+# 4. 启动
+ETF_DB_PASSWORD='your_password' python app.py
+```
 
 ## 📅 日常维护
 
@@ -153,14 +177,14 @@ python holder_collector.py
 
 ## 📊 数据源说明
 
-| 数据 | 来源 | 更新频率 |
-|---|---|---|
-| ETF 每日份额 | AKShare → 上交所 | 每个交易日 |
-| ETF 历史价格 | 新浪财经 K线 API | 每个交易日 |
-| 十大持有人 | 新浪财经基金 API | 半年报 / 年报 |
-| ETF 列表 | 上交所云行情 API | 按需 |
+| 数据 | 来源 | 更新频率 | 延迟 |
+|---|---|---|---|
+| ETF 每日份额 | 上交所 SSE API (`query.sse.com.cn`) | 每个交易日 | T+1 |
+| ETF 历史价格 | 新浪财经 K线 API | 每个交易日 | 实时 |
+| 十大持有人 | 新浪财经基金 API | 半年报 / 年报 | 最长 6 个月 |
+| ETF 列表 | 上交所云行情 API | 按需 | - |
 
-> ⚠️ **数据时效性提示**：十大持有人数据仅在半年报（6月30日截止）和年报（12月31日截止）中披露，并非实时数据。
+> ⚠️ **数据时效性提示**：份额数据存在 T+1 延迟，十大持有人数据仅在半年报/年报中披露。看板主页会显示份额数据的实际更新日期。
 
 ## 🔧 数据库表结构
 

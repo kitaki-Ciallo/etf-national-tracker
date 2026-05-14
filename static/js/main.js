@@ -144,8 +144,13 @@
     async function loadTableData() {
         try {
             const res = await fetch('/api/overview/table');
-            tableData = await res.json();
-            document.getElementById('lastUpdate').textContent = `共 ${tableData.length} 只国家队持仓 ETF`;
+            const json = await res.json();
+            tableData = json.data || json;
+            const shareDate = json.latest_share_date || '-';
+            document.getElementById('shareUpdateDate').innerHTML =
+                `📅 份额数据更新至: <span class="date-value">${shareDate}</span>`;
+            document.getElementById('lastUpdate').textContent =
+                `共 ${tableData.length} 只国家队持仓 ETF`;
             document.getElementById('etfCount').textContent = `${tableData.length} 只`;
             sortAndRender();
         } catch (e) {

@@ -5,10 +5,11 @@ ETF 国家队量化看板 — 历史数据初始化脚本
 用法:
     python init_data.py
 """
-import os, sys, time, re, json
+import os, sys, time, re, json, subprocess
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from datetime import datetime, timedelta
 
-import akshare as ak
 import pandas as pd
 import requests
 import psycopg2
@@ -149,6 +150,50 @@ def init_etf_info(conn):
     return nt_codes
 
 
+# ─── 上交所 ETF 份额 API (直接调用, 不依赖 AKShare) ───
+def fetch_sse_shares(date_str):
+    """
+    直接从上交所 API 获取 ETF 份额数据 (使用 curl 确保兼容性)。
+    date_str: 格式 '20260513'
+    返回: list of dict [{SEC_CODE, TOT_VOL, ...}, ...]
+    """
+    data_str = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+    url = (
+        f"https://query.sse.com.cn/commonQuery.do?"
+        f"isPagination=true&pageHelp.pageSize=10000&pageHelp.pageNo=1"
+        f"&pageHelp.beginPage=1&pageHelp.cacheSize=1&pageHelp.endPage=1"
+        f"&sqlId=COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L"
+        f"&STAT_DATE={data_str}"
+    )
+    headers = {
+        "Referer": "https://www.sse.com.cn/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    }
+    # 先尝试 requests (verify=False: 云服务器 SSL 握手上交所证书会超时)
+    try:
+        resp = requests.get(url, headers=headers, timeout=60, verify=False)
+        data = resp.json()
+        return data.get("result", [])
+    except Exception as e:
+        print(f"  [份额API] requests 失败: {type(e).__name__}: {e}")
+    # requests 失败时用 curl (云服务器更稳定)
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "60",
+             "-H", "Referer: https://www.sse.com.cn/",
+             "-H", f"User-Agent: {headers['User-Agent']}",
+             url],
+            capture_output=True, timeout=65
+        )
+        if result.returncode != 0:
+            return []
+        data = json.loads(result.stdout.decode("utf-8", errors="replace"))
+        return data.get("result", [])
+    except Exception as e:
+        print(f"  [份额API] 错误: {e}")
+        return []
+
+
 # ─── Step 2: 每日份额 ───
 def init_daily_shares(conn, nt_codes):
     dates = []
@@ -166,24 +211,17 @@ def init_daily_shares(conn, nt_codes):
 
     for date_str in tqdm(dates, desc="回溯份额"):
         try:
-            df = ak.fund_etf_scale_sse(date=date_str)
-            if df is None or df.empty:
+            etf_rows = fetch_sse_shares(date_str)
+            if not etf_rows:
                 continue
-            code_col = share_col = None
-            for col in df.columns:
-                if "代码" in col: code_col = col
-                elif "份额" in col: share_col = col
-            if not code_col or not share_col:
-                if len(df.columns) >= 6:
-                    code_col, share_col = df.columns[1], df.columns[5]
-                else: continue
             trade_date = datetime.strptime(date_str, "%Y%m%d").date()
             rows = []
-            for _, row in df.iterrows():
-                code = str(row[code_col]).strip()
+            for item in etf_rows:
+                code = str(item.get("SEC_CODE", "")).strip()
                 if code in target_codes:
                     try:
-                        share = float(row[share_col])
+                        # TOT_VOL 单位: 万份, 转换为份
+                        share = float(item.get("TOT_VOL", 0)) * 10000
                         if share > 0: rows.append((code, trade_date, share))
                     except: continue
             if rows:

@@ -1,6 +1,5 @@
 flask>=3.0
 psycopg2-binary>=2.9
-akshare>=1.14
 beautifulsoup4>=4.12
 requests>=2.31
 pandas>=2.0
