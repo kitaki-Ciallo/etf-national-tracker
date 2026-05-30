@@ -26,16 +26,23 @@ def get_db_conn():
 
 
 # ─── 新浪 K线 API ───
+def get_exchange_prefix(code):
+    """根据 ETF 代码判断交易所前缀: 深交所 159xxx → sz, 上交所 51xxxx → sh"""
+    if code.startswith("159") or code.startswith("16"):
+        return "sz"
+    return "sh"
+
 def fetch_sina_kline(symbol, datalen=1023):
     """
     从新浪财经获取 ETF 日线数据。
     API: CN_MarketDataService.getKLineData
     返回: list of dict [{day, open, high, low, close, volume}, ...]
     """
+    prefix = get_exchange_prefix(symbol)
     url = (
         f"https://quotes.sina.cn/cn/api/jsonp_v2.php/"
         f"var%20_data=/CN_MarketDataService.getKLineData"
-        f"?symbol=sh{symbol}&scale=240&ma=no&datalen={datalen}"
+        f"?symbol={prefix}{symbol}&scale=240&ma=no&datalen={datalen}"
     )
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
