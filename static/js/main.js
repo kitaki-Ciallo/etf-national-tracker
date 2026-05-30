@@ -5,25 +5,39 @@
     'use strict';
 
     let chartInstance = null;
+    let flowChartInstance = null;
     let tableData = [];
     let currentSort = { key: 'nt_hold_ratio', dir: 'desc' };
 
     // ─── Init ───
     document.addEventListener('DOMContentLoaded', () => {
         initChart();
+        initFlowChart();
         loadChartData(365);
+        loadFlowChartData(365);
         loadTableData();
         initTimeSelector();
+        initFlowTimeSelector();
         initTableSort();
     });
 
     // ─── Time Selector ───
     function initTimeSelector() {
-        document.querySelectorAll('.time-btn').forEach(btn => {
+        document.querySelectorAll('#timeSelector .time-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#timeSelector .time-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 loadChartData(parseInt(btn.dataset.days));
+            });
+        });
+    }
+
+    function initFlowTimeSelector() {
+        document.querySelectorAll('#flowTimeSelector .time-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#flowTimeSelector .time-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                loadFlowChartData(parseInt(btn.dataset.days));
             });
         });
     }
@@ -137,6 +151,106 @@
             ],
             dataZoom: [{ type: 'inside', start: 0, end: 100 }],
             series: series,
+        }, true);
+    }
+
+    // ─── Flow Chart Init ───
+    function initFlowChart() {
+        const el = document.getElementById('flowChart');
+        if(!el) return;
+        el.innerHTML = '';
+        flowChartInstance = echarts.init(el, null, { renderer: 'canvas' });
+        window.addEventListener('resize', () => flowChartInstance && flowChartInstance.resize());
+    }
+
+    // ─── Load Flow Chart Data ───
+    async function loadFlowChartData(days) {
+        try {
+            const res = await fetch(`/api/capital_flow?days=${days}`);
+            const data = await res.json();
+            renderFlowChart(data);
+        } catch (e) {
+            console.error('Flow chart load error:', e);
+        }
+    }
+
+    // ─── Render Flow Chart ───
+    function renderFlowChart(data) {
+        if (!flowChartInstance) return;
+        const dates = data.dates;
+        const seriesData = [];
+        
+        // 我们需要把正数变红，负数变绿
+        // 在 ECharts 中，可以通过 itemStyle 根据数据正负动态设置颜色
+        const getColors = (val) => val >= 0 ? 'rgba(239, 68, 68, 0.8)' : 'rgba(34, 197, 94, 0.8)';
+
+        for (const [name, values] of Object.entries(data.series)) {
+            const isTotal = name === '总计';
+            seriesData.push({
+                name: name,
+                type: 'bar',
+                barMaxWidth: 30,
+                // 把“总计”放一个组，其他指数放另一个组，这样就不会叠加混乱
+                stack: isTotal ? 'total' : 'index',
+                data: values.map(v => ({
+                    value: v,
+                    itemStyle: {
+                        color: getColors(v),
+                        opacity: isTotal ? 1 : 0.6
+                    }
+                })),
+                label: {
+                    show: false
+                }
+            });
+        }
+
+        flowChartInstance.setOption({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                textStyle: { color: '#f8fafc' },
+                valueFormatter: (value) => value + ' 亿元'
+            },
+            legend: {
+                top: 5,
+                left: 'center',
+                textStyle: { color: '#94a3b8', fontSize: 12 },
+                itemWidth: 12,
+                itemHeight: 12,
+                // 默认只选中总计，不然柱子太多
+                selected: {
+                    '总计': true,
+                    '上证180': false,
+                    '中证1000': false,
+                    '沪深300': false,
+                    '中证500': false,
+                    '科创50': false,
+                    '上证50': false,
+                    '其他': false
+                }
+            },
+            grid: { top: 40, left: '5%', right: '5%', bottom: '10%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: dates,
+                axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+                axisLabel: { color: '#64748b', fontSize: 10 },
+                axisTick: { show: false },
+            },
+            yAxis: {
+                type: 'value',
+                name: '资金净流入 (亿元)',
+                nameTextStyle: { color: '#64748b', fontSize: 10 },
+                axisLabel: { color: '#64748b', fontSize: 10, formatter: '{value}' },
+                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
+                axisLine: { show: false },
+            },
+            dataZoom: [{ type: 'inside', start: 0, end: 100 }],
+            series: seriesData,
         }, true);
     }
 

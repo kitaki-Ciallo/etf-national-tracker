@@ -12,7 +12,7 @@ DB_CONFIG = {
     "port": int(os.getenv("ETF_DB_PORT", "5432")),
     "database": os.getenv("ETF_DB_NAME", "etf_dashboard"),
     "user": os.getenv("ETF_DB_USER", "postgres"),
-    "password": os.getenv("ETF_DB_PASSWORD", ""),
+    "password": os.getenv("ETF_DB_PASSWORD", "jiangyue28"),
 }
 
 # ============================================================

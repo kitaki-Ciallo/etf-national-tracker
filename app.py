@@ -81,6 +81,96 @@ def api_overview_chart():
     finally:
         conn.close()
 
+# ─── 辅助函数: 归类宽基指数 ───
+def categorize_etf(name):
+    if '180' in name: return '上证180'
+    if '1000' in name: return '中证1000'
+    if '300' in name: return '沪深300'
+    if '500' in name: return '中证500'
+    if '科创50' in name or '科创板50' in name: return '科创50'
+    if '上证50' in name or '50ETF' in name or '沪50ETF' in name: return '上证50'
+    return '其他'
+
+# ─── API: 单日资金流入流出 ───
+@app.route("/api/capital_flow")
+def api_capital_flow():
+    days = int(request.args.get("days", 365))
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        since = (datetime.now() - timedelta(days=days)).date()
+        
+        # 利用窗口函数 LAG 计算每日份额差值，并关联当天的收盘价计算资金净流入
+        cur.execute("""
+            WITH daily_stats AS (
+                SELECT 
+                    s.trade_date,
+                    s.ts_code,
+                    e.name,
+                    s.total_share,
+                    LAG(s.total_share) OVER (PARTITION BY s.ts_code ORDER BY s.trade_date) as prev_share,
+                    (p.open + p.close + p.high + p.low) / 4.0 as avg_price,
+                    COALESCE(v.total_nt_ratio, 0) as nt_ratio
+                FROM etf_daily_share s
+                JOIN etf_info e ON s.ts_code = e.ts_code
+                LEFT JOIN etf_daily_price p ON s.ts_code = p.ts_code AND s.trade_date = p.trade_date
+                LEFT JOIN v_nt_etf_summary v ON s.ts_code = v.ts_code
+                WHERE e.is_nt_held = TRUE AND s.trade_date >= %s
+            )
+            SELECT 
+                trade_date,
+                name,
+                (total_share - prev_share) * avg_price * (nt_ratio / 100.0) as net_inflow
+            FROM daily_stats
+            WHERE prev_share IS NOT NULL AND avg_price IS NOT NULL
+        """, (since - timedelta(days=5),)) # 多取几天以保证 LAG 有数据
+        
+        rows = cur.fetchall()
+        
+        # 聚合数据
+        dates_set = set()
+        flows = {
+            "总计": {},
+            "上证180": {},
+            "中证1000": {},
+            "沪深300": {},
+            "中证500": {},
+            "科创50": {},
+            "上证50": {},
+            "其他": {}
+        }
+        
+        for r in rows:
+            trade_date = r[0]
+            if trade_date < since: continue
+            
+            dates_set.add(trade_date)
+            date_str = trade_date.isoformat()
+            
+            name = r[1]
+            inflow = float(r[2]) / 100000000.0  # 转换为亿元
+            
+            cat = categorize_etf(name)
+            
+            # 累加到总计
+            flows["总计"][date_str] = flows["总计"].get(date_str, 0) + inflow
+            # 累加到分类
+            flows[cat][date_str] = flows[cat].get(date_str, 0) + inflow
+            
+        sorted_dates = sorted(list(dates_set))
+        date_strs = [d.isoformat() for d in sorted_dates]
+        
+        series = {}
+        for cat, data_dict in flows.items():
+            series[cat] = [round(data_dict.get(d, 0), 2) for d in date_strs]
+            
+        return jsonify({
+            "dates": date_strs,
+            "series": series
+        })
+    finally:
+        conn.close()
+
 # ─── API: 主页表格数据 ───
 @app.route("/api/overview/table")
 def api_overview_table():

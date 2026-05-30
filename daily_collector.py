@@ -47,33 +47,44 @@ def fetch_sina_kline(symbol, datalen=10):
 
 def fetch_sse_shares(date_str):
     """直接从上交所 API 获取 ETF 份额数据"""
-    data_str = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+    # 必须转换为 YYYY-MM-DD 格式
+    formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
     url = (
         f"https://query.sse.com.cn/commonQuery.do?"
-        f"isPagination=true&pageHelp.pageSize=10000&pageHelp.pageNo=1"
+        f"jsonCallBack=jsonpCallback&isPagination=true&pageHelp.pageSize=10000&pageHelp.pageNo=1"
         f"&pageHelp.beginPage=1&pageHelp.cacheSize=1&pageHelp.endPage=1"
         f"&sqlId=COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L"
-        f"&STAT_DATE={data_str}"
+        f"&STAT_DATE={formatted_date}"
     )
     headers = {
         "Referer": "https://www.sse.com.cn/",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     }
+    
+    def extract_json(text):
+        """剥离 jsonp 外壳"""
+        text = text.strip()
+        if text.startswith("jsonpCallback(") and text.endswith(")"):
+            text = text[14:-1]
+        return json.loads(text).get("result", [])
+
     try:
-        resp = requests.get(url, headers=headers, timeout=60, verify=False)
-        return resp.json().get("result", [])
+        resp = requests.get(url, headers=headers, timeout=15, verify=False)
+        return extract_json(resp.text)
     except Exception as e:
         print(f"  [份额API] requests 失败: {type(e).__name__}: {e}")
     try:
         result = subprocess.run(
-            ["curl", "-s", "--max-time", "60",
+            ["curl", "-s", "--max-time", "15",
              "-H", "Referer: https://www.sse.com.cn/",
              "-H", f"User-Agent: {headers['User-Agent']}",
              url],
-            capture_output=True, timeout=65
+            capture_output=True, timeout=20
         )
-        if result.returncode != 0: return []
-        return json.loads(result.stdout.decode("utf-8", errors="replace")).get("result", [])
+        if result.returncode != 0:
+            print(f"  [份额API] curl 兜底失败: code={result.returncode}, err={result.stderr.decode('utf-8', errors='replace')}")
+            return []
+        return extract_json(result.stdout.decode("utf-8", errors="replace"))
     except Exception as e:
         print(f"  [份额API] 错误: {e}")
         return []

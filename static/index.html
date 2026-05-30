@@ -43,6 +43,24 @@
         </div>
     </section>
 
+    <!-- Capital Flow Card -->
+    <section class="card" id="flowCard">
+        <div class="card-header">
+            <div class="card-title">
+                <span class="emoji">💸</span>
+                国家队单日买卖资金流向 (亿元)
+            </div>
+            <div class="time-selector" id="flowTimeSelector">
+                <button class="time-btn" data-days="30">1月</button>
+                <button class="time-btn" data-days="90">3月</button>
+                <button class="time-btn active" data-days="365">1年</button>
+            </div>
+        </div>
+        <div class="chart-container" id="flowChart">
+            <div class="loading-overlay"><div class="spinner"></div>加载资金流向...</div>
+        </div>
+    </section>
+
     <!-- Table Card -->
     <section class="card" id="tableCard">
         <div class="card-header">

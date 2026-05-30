@@ -39,3 +39,4 @@ national_team_etfs.csv
 # Environment Variables
 .env
 .env.local
+analysis_scripts/
