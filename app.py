@@ -105,9 +105,12 @@ def api_overview_table():
             # 最新份额
             cur.execute("SELECT total_share FROM etf_daily_share WHERE ts_code=%s AND trade_date=%s", (code, latest_date))
             r = cur.fetchone()
-            if not r: continue
-            latest_share = float(r[0])
-            row["latest_share"] = latest_share
+            if not r:
+                latest_share = None
+                row["latest_share"] = None
+            else:
+                latest_share = float(r[0])
+                row["latest_share"] = latest_share
 
             # 各周期份额变化
             for label, days in [("1d", 1), ("1w", 7), ("1m", 30), ("3m", 90), ("1y", 365)]:
@@ -117,7 +120,7 @@ def api_overview_table():
                     WHERE ts_code=%s AND trade_date <= %s ORDER BY trade_date DESC LIMIT 1
                 """, (code, target))
                 pr = cur.fetchone()
-                if pr and float(pr[0]) > 0:
+                if pr and float(pr[0]) > 0 and latest_share is not None:
                     row[f"share_chg_{label}"] = round((latest_share - float(pr[0])) / float(pr[0]) * 100, 4)
                 else:
                     row[f"share_chg_{label}"] = None
